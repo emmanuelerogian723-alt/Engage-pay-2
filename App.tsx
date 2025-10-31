@@ -7,7 +7,7 @@ import UserProfile from './components/UserProfile';
 import { UserRole, User, Announcement, Submission, WithdrawalRequest, Campaign, Engager, Creator, Transaction, Notification } from './types';
 import Chatbot from './components/Chatbot';
 import AuthModal from './components/SignUpModal';
-import { ChatIcon } from './components/icons';
+import { ChatIcon, TrendingUpIcon } from './components/icons';
 import { MOCK_ANNOUNCEMENTS, MOCK_SUBMISSIONS, MOCK_WITHDRAWAL_REQUESTS, MOCK_USERS, MOCK_CAMPAIGNS } from './constants';
 
 // Helper for local storage
@@ -48,6 +48,12 @@ const App: React.FC = () => {
   const [viewRole, setViewRole] = useState<UserRole>(currentUser?.role || UserRole.Engager);
 
   useEffect(() => {
+    if (!currentUserId) {
+      setAuthModalOpen(true);
+    }
+  }, []);
+
+  useEffect(() => {
     if (theme === 'dark') {
       document.documentElement.classList.add('dark');
     } else {
@@ -61,11 +67,12 @@ const App: React.FC = () => {
 
   const handleLogin = (email: string, pass: string) => {
       let foundUser: User | null = null;
-      if (email.toLowerCase() === 'emmanuelerog@gmail.com' && pass === 'Erog@0291') {
+      const lowerCaseEmail = email.toLowerCase();
+      if ((lowerCaseEmail === 'emmanuelerog@gmail.com' || lowerCaseEmail === 'emmanuelerogian723@gmail.com') && pass === 'Erog@0291') {
           foundUser = Object.values(users).find(u => u.role === UserRole.Admin) || null;
       } else {
           // Simulate finding any other user by email
-          foundUser = Object.values(users).find(u => u.email.toLowerCase() === email.toLowerCase()) || null;
+          foundUser = Object.values(users).find(u => u.email.toLowerCase() === lowerCaseEmail) || null;
       }
       
       if (foundUser) {
@@ -107,6 +114,7 @@ const App: React.FC = () => {
       setCurrentUserId(null);
       setViewRole(UserRole.Engager); // Reset to default view
       setCurrentPage('dashboard');
+      setAuthModalOpen(true); // Show login screen after logout
   };
 
   const handleUpdateUser = (updatedUser: User) => {
@@ -120,13 +128,26 @@ const App: React.FC = () => {
   };
 
   const renderCurrentPage = () => {
-    if (currentPage === 'profile' && currentUser) {
-        return <UserProfile currentUser={currentUser} onNavigateBack={() => setCurrentPage('dashboard')} onUpdateUser={handleUpdateUser} users={users} />;
-    }
-    
-    // If not logged in, show a generic landing/engager page
     if (!currentUser) {
-        return <EngagerDashboard announcements={announcements} currentUser={null} onPaymentSubmitted={() => {}} setSubmissions={setSubmissions} setWithdrawalRequests={setWithdrawalRequests} onUpdateUser={()=>{}} />;
+        if (!isAuthModalOpen) {
+            return (
+                <div className="flex flex-col justify-center items-center h-96 text-center">
+                    <TrendingUpIcon className="w-16 h-16 text-primary-300 dark:text-primary-700 mb-4" />
+                    <h1 className="text-2xl font-bold">Welcome to EngagePay</h1>
+                    <p className="text-gray-500 mt-2">Please log in or sign up to continue.</p>
+                    <button 
+                        onClick={() => setAuthModalOpen(true)}
+                        className="mt-6 px-6 py-2 text-sm font-semibold text-white bg-primary-600 rounded-full hover:bg-primary-700 transition-colors duration-200">
+                            Login / Sign Up
+                    </button>
+                </div>
+            );
+        }
+        return null; // Return null while auth modal is open for a clean overlay
+    }
+
+    if (currentPage === 'profile') {
+        return <UserProfile currentUser={currentUser} onNavigateBack={() => setCurrentPage('dashboard')} onUpdateUser={handleUpdateUser} users={users} />;
     }
 
     const effectiveRole = currentUser.role === UserRole.Admin ? viewRole : currentUser.role;
@@ -185,7 +206,7 @@ const App: React.FC = () => {
         {renderCurrentPage()}
       </main>
       
-      <AuthModal isOpen={isAuthModalOpen} onClose={() => setAuthModalOpen(false)} onLogin={handleLogin} onSignUp={handleSignUp} />
+      {isAuthModalOpen && <AuthModal isOpen={isAuthModalOpen} onClose={() => setAuthModalOpen(false)} onLogin={handleLogin} onSignUp={handleSignUp} />}
       <Chatbot isOpen={isChatOpen} onClose={() => setChatOpen(false)} />
 
       <button

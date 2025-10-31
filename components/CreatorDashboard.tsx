@@ -105,12 +105,51 @@ const CreatorWallet: React.FC<{ user: Creator; onFund: () => void; }> = ({ user,
 const PaymentModal: React.FC<{ isOpen: boolean, onClose: () => void, onAddFunds: (amount: number) => void, currentUserId?: string }> = ({ isOpen, onClose, onAddFunds, currentUserId }) => {
     const [paymentMethod, setPaymentMethod] = useState<'card' | 'transfer'>('card');
     const [amount, setAmount] = useState<number>(100);
+    
+    // Card details state
+    const [cardDetails, setCardDetails] = useState({ cardNumber: '', expiryDate: '', cvc: '' });
+    const [cardErrors, setCardErrors] = useState<Partial<typeof cardDetails>>({});
 
     if (!isOpen) return null;
+    
+    const handleCardChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const { name, value } = e.target;
+        setCardDetails(prev => ({...prev, [name]: value}));
+    };
+
+    const validateCard = () => {
+        const newErrors: Partial<typeof cardDetails> = {};
+        if (!/^\d{16}$/.test(cardDetails.cardNumber.replace(/\s/g, ''))) {
+            newErrors.cardNumber = "Card number must be 16 digits.";
+        }
+        if (!/^(0[1-9]|1[0-2])\/?\d{2}$/.test(cardDetails.expiryDate)) {
+            newErrors.expiryDate = "Use MM/YY format.";
+        } else {
+            const [month, year] = cardDetails.expiryDate.split('/');
+            const expiry = new Date(Number(`20${year}`), Number(month), 0); // Day 0 gives last day of previous month
+            if (expiry < new Date()) {
+                newErrors.expiryDate = "Card has expired.";
+            }
+        }
+        if (!/^\d{3,4}$/.test(cardDetails.cvc)) {
+            newErrors.cvc = "CVC must be 3 or 4 digits.";
+        }
+
+        setCardErrors(newErrors);
+        return Object.keys(newErrors).length === 0;
+    };
+
 
     const handleFund = () => {
-        if(amount > 0) {
-            onAddFunds(amount);
+        if (amount <= 0) return;
+        
+        if (paymentMethod === 'card') {
+            if (validateCard()) {
+                onAddFunds(amount);
+                onClose();
+            }
+        } else { // For bank transfer
+            onAddFunds(amount); // Assuming the user confirms payment, let's just add the fund for simulation
             onClose();
         }
     };
@@ -137,26 +176,29 @@ const PaymentModal: React.FC<{ isOpen: boolean, onClose: () => void, onAddFunds:
                     </div>
 
                     {paymentMethod === 'card' && (
-                        <form className="space-y-4">
+                        <div className="space-y-4">
                              <div>
                                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Amount</label>
                                 <input type="number" value={amount} onChange={(e) => setAmount(Number(e.target.value))} placeholder="$100.00" className="mt-1 block w-full bg-gray-100 dark:bg-gray-700 border-transparent rounded-md p-2 focus:ring-primary-500 focus:border-primary-500" />
                             </div>
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Card Number</label>
-                                <input type="text" placeholder="**** **** **** 1234" className="mt-1 block w-full bg-gray-100 dark:bg-gray-700 border-transparent rounded-md p-2 focus:ring-primary-500 focus:border-primary-500" />
+                                <input type="text" name="cardNumber" value={cardDetails.cardNumber} onChange={handleCardChange} placeholder="**** **** **** 1234" className="mt-1 block w-full bg-gray-100 dark:bg-gray-700 border-transparent rounded-md p-2 focus:ring-primary-500 focus:border-primary-500" />
+                                {cardErrors.cardNumber && <p className="text-red-500 text-xs mt-1">{cardErrors.cardNumber}</p>}
                             </div>
                             <div className="flex space-x-4">
                                 <div className="flex-1">
                                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Expiry Date</label>
-                                    <input type="text" placeholder="MM/YY" className="mt-1 block w-full bg-gray-100 dark:bg-gray-700 border-transparent rounded-md p-2 focus:ring-primary-500 focus:border-primary-500" />
+                                    <input type="text" name="expiryDate" value={cardDetails.expiryDate} onChange={handleCardChange} placeholder="MM/YY" className="mt-1 block w-full bg-gray-100 dark:bg-gray-700 border-transparent rounded-md p-2 focus:ring-primary-500 focus:border-primary-500" />
+                                    {cardErrors.expiryDate && <p className="text-red-500 text-xs mt-1">{cardErrors.expiryDate}</p>}
                                 </div>
                                 <div className="flex-1">
                                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">CVC</label>
-                                    <input type="text" placeholder="123" className="mt-1 block w-full bg-gray-100 dark:bg-gray-700 border-transparent rounded-md p-2 focus:ring-primary-500 focus:border-primary-500" />
+                                    <input type="text" name="cvc" value={cardDetails.cvc} onChange={handleCardChange} placeholder="123" className="mt-1 block w-full bg-gray-100 dark:bg-gray-700 border-transparent rounded-md p-2 focus:ring-primary-500 focus:border-primary-500" />
+                                    {cardErrors.cvc && <p className="text-red-500 text-xs mt-1">{cardErrors.cvc}</p>}
                                 </div>
                             </div>
-                        </form>
+                        </div>
                     )}
                     {paymentMethod === 'transfer' && (
                         <div className="text-sm text-gray-600 dark:text-gray-400 space-y-3 p-4 bg-gray-50 dark:bg-gray-900 rounded-lg">
@@ -179,21 +221,31 @@ const PaymentModal: React.FC<{ isOpen: boolean, onClose: () => void, onAddFunds:
 };
 
 const CreateTaskModal: React.FC<{ isOpen: boolean, onClose: () => void, onCreateCampaign: (campaign: Omit<Campaign, 'id' | 'creatorId' | 'completedTasks' | 'status'>) => void, balance: number }> = ({ isOpen, onClose, onCreateCampaign, balance }) => {
-    // State for inputs
-    const [campaignName, setCampaignName] = useState('');
-    const [platform, setPlatform] = useState<SocialPlatform>(SocialPlatform.Instagram);
-    const [engagementType, setEngagementType] = useState<EngagementType>(EngagementType.Like);
-    const [payout, setPayout] = useState('');
-    const [totalTasks, setTotalTasks] = useState('');
+    const initialFormState = {
+        campaignName: '',
+        platform: SocialPlatform.Instagram,
+        engagementType: EngagementType.Like,
+        payout: '',
+        totalTasks: '',
+    };
+    
+    // State for inputs using a single state object
+    const [formData, setFormData] = useState(initialFormState);
 
     // State for validation
     const [budget, setBudget] = useState(0);
     const [error, setError] = useState('');
 
+    // Handler for all form inputs
+    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+        const { name, value } = e.target;
+        setFormData(prev => ({ ...prev, [name]: value }));
+    };
+
     // Effect for real-time validation
     useEffect(() => {
-        const numPayout = parseFloat(payout) || 0;
-        const numTasks = parseInt(totalTasks, 10) || 0;
+        const numPayout = parseFloat(formData.payout) || 0;
+        const numTasks = parseInt(formData.totalTasks, 10) || 0;
         const calculatedBudget = numPayout * numTasks;
         setBudget(calculatedBudget);
 
@@ -203,16 +255,12 @@ const CreateTaskModal: React.FC<{ isOpen: boolean, onClose: () => void, onCreate
         } else {
             setError('');
         }
-    }, [payout, totalTasks, balance]);
+    }, [formData.payout, formData.totalTasks, balance]);
     
     // Reset state when modal closes
     useEffect(() => {
         if (!isOpen) {
-            setCampaignName('');
-            setPlatform(SocialPlatform.Instagram);
-            setEngagementType(EngagementType.Like);
-            setPayout('');
-            setTotalTasks('');
+            setFormData(initialFormState);
             setBudget(0);
             setError('');
         }
@@ -225,11 +273,11 @@ const CreateTaskModal: React.FC<{ isOpen: boolean, onClose: () => void, onCreate
         }
 
         const newCampaign = {
-            name: campaignName,
-            platform,
-            engagementType,
+            name: formData.campaignName,
+            platform: formData.platform as SocialPlatform,
+            engagementType: formData.engagementType as EngagementType,
             budget,
-            totalTasks: parseInt(totalTasks, 10),
+            totalTasks: parseInt(formData.totalTasks, 10),
         };
         onCreateCampaign(newCampaign);
         onClose();
@@ -251,18 +299,18 @@ const CreateTaskModal: React.FC<{ isOpen: boolean, onClose: () => void, onCreate
                         <div className="space-y-4">
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Campaign Name</label>
-                                <input value={campaignName} onChange={e => setCampaignName(e.target.value)} type="text" placeholder="e.g., Summer Collection Launch" required className="block w-full bg-gray-100 dark:bg-gray-700 border-transparent rounded-md p-2 focus:ring-primary-500 focus:border-primary-500" />
+                                <input name="campaignName" value={formData.campaignName} onChange={handleInputChange} type="text" placeholder="e.g., Summer Collection Launch" required className="block w-full bg-gray-100 dark:bg-gray-700 border-transparent rounded-md p-2 focus:ring-primary-500 focus:border-primary-500" />
                             </div>
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Platform</label>
-                                    <select value={platform} onChange={e => setPlatform(e.target.value as SocialPlatform)} required className="mt-1 block w-full bg-gray-100 dark:bg-gray-700 border-transparent rounded-md p-2 focus:ring-primary-500 focus:border-primary-500">
+                                    <select name="platform" value={formData.platform} onChange={handleInputChange} required className="mt-1 block w-full bg-gray-100 dark:bg-gray-700 border-transparent rounded-md p-2 focus:ring-primary-500 focus:border-primary-500">
                                         {Object.values(SocialPlatform).map(p => <option key={p} value={p}>{p}</option>)}
                                     </select>
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Engagement Type</label>
-                                    <select value={engagementType} onChange={e => setEngagementType(e.target.value as EngagementType)} required className="mt-1 block w-full bg-gray-100 dark:bg-gray-700 border-transparent rounded-md p-2 focus:ring-primary-500 focus:border-primary-500">
+                                    <select name="engagementType" value={formData.engagementType} onChange={handleInputChange} required className="mt-1 block w-full bg-gray-100 dark:bg-gray-700 border-transparent rounded-md p-2 focus:ring-primary-500 focus:border-primary-500">
                                         {Object.values(EngagementType).map(type => <option key={type} value={type}>{type}</option>)}
                                     </select>
                                 </div>
@@ -270,11 +318,11 @@ const CreateTaskModal: React.FC<{ isOpen: boolean, onClose: () => void, onCreate
                             <div className="flex space-x-4">
                                <div className="flex-1">
                                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Payout per Task</label>
-                                    <input value={payout} onChange={e => setPayout(e.target.value)} type="number" step="0.01" min="0.01" placeholder="$0.10" required className="mt-1 block w-full bg-gray-100 dark:bg-gray-700 border-transparent rounded-md p-2 focus:ring-primary-500 focus:border-primary-500" />
+                                    <input name="payout" value={formData.payout} onChange={handleInputChange} type="number" step="0.01" min="0.01" placeholder="$0.10" required className="mt-1 block w-full bg-gray-100 dark:bg-gray-700 border-transparent rounded-md p-2 focus:ring-primary-500 focus:border-primary-500" />
                                 </div>
                                  <div className="flex-1">
                                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Total Tasks</label>
-                                    <input value={totalTasks} onChange={e => setTotalTasks(e.target.value)} type="number" step="1" min="1" placeholder="1000" required className="mt-1 block w-full bg-gray-100 dark:bg-gray-700 border-transparent rounded-md p-2 focus:ring-primary-500 focus:border-primary-500" />
+                                    <input name="totalTasks" value={formData.totalTasks} onChange={handleInputChange} type="number" step="1" min="1" placeholder="1000" required className="mt-1 block w-full bg-gray-100 dark:bg-gray-700 border-transparent rounded-md p-2 focus:ring-primary-500 focus:border-primary-500" />
                                 </div>
                             </div>
                              <div className="p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg text-center">
@@ -301,6 +349,7 @@ const CreateTaskModal: React.FC<{ isOpen: boolean, onClose: () => void, onCreate
         </div>
     );
 };
+
 
 interface CreatorDashboardProps {
     announcements: Announcement[];

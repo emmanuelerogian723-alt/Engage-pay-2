@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { MOCK_TASKS, MOCK_LEADERBOARD, MOCK_BADGES, PLATFORM_ICONS } from '../constants';
 import { Task, Engager, Badge, Announcement, User, WithdrawalRequest, Submission } from '../types';
-import { LikeIcon, CommentIcon, FollowIcon, ViewIcon, ShareIcon, WalletIcon, LinkIcon, UploadIcon, CloseIcon, CreditCardIcon, MegaphoneIcon, SearchIcon, StarIcon } from './icons';
+import { LikeIcon, CommentIcon, FollowIcon, ViewIcon, ShareIcon, WalletIcon, LinkIcon, UploadIcon, CloseIcon, CreditCardIcon, MegaphoneIcon, SearchIcon, StarIcon, CheckCircleIcon } from './icons';
 
 const ENGAGEMENT_ICONS: { [key:string]: React.ElementType } = {
   Like: LikeIcon,
@@ -59,9 +59,12 @@ const Leaderboard: React.FC = () => (
             {MOCK_LEADERBOARD.map(user => (
                 <li key={user.id} className="flex items-center justify-between">
                     <div className="flex items-center space-x-3">
-                        <span className="font-bold text-gray-500 dark:text-gray-400">{user.rank}</span>
+                        <span className="font-bold text-gray-500 dark:text-gray-400 w-6 text-center">{user.rank}</span>
                         <img src={user.avatar} alt={user.name} className="w-10 h-10 rounded-full" />
-                        <span className="font-semibold text-gray-700 dark:text-gray-300">{user.name}</span>
+                        <div className="flex items-center space-x-1.5">
+                            <span className="font-semibold text-gray-700 dark:text-gray-300">{user.name}</span>
+                            {user.isVerified && <CheckCircleIcon className="w-4 h-4 text-blue-500"><title>Verified User</title></CheckCircleIcon>}
+                        </div>
                     </div>
                     <span className="font-bold text-primary-500">${user.earnings.toFixed(2)}</span>
                 </li>
@@ -111,18 +114,50 @@ const SubscriptionModal: React.FC<{ onPaymentSubmitted: () => void, isPending: b
 
 
 const WithdrawalModal: React.FC<{ isOpen: boolean, onClose: () => void, balance: number, onSubmit: (details: Omit<WithdrawalRequest, 'id' | 'userId' | 'status' | 'requestedAt'>) => void }> = ({ isOpen, onClose, balance, onSubmit }) => {
+    const [formData, setFormData] = useState({
+        amount: balance.toFixed(2),
+        bankCountry: 'Nigeria',
+        bankName: '',
+        accountNumber: ''
+    });
+    const [errors, setErrors] = useState<Partial<typeof formData>>({});
+
     if (!isOpen) return null;
+    
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+        const { name, value } = e.target;
+        setFormData(prev => ({ ...prev, [name]: value }));
+    };
+
+    const validate = () => {
+        const newErrors: Partial<typeof formData> = {};
+        const numericAmount = parseFloat(formData.amount);
+
+        if (isNaN(numericAmount) || numericAmount <= 0) {
+            newErrors.amount = "Amount must be greater than 0.";
+        } else if (numericAmount > balance) {
+            newErrors.amount = "Amount cannot exceed your balance.";
+        }
+        if (!formData.bankName.trim()) {
+            newErrors.bankName = "Bank name is required.";
+        }
+        if (!/^\d{10}$/.test(formData.accountNumber)) {
+            newErrors.accountNumber = "Account number must be 10 digits.";
+        }
+        setErrors(newErrors);
+        return Object.keys(newErrors).length === 0;
+    };
 
     const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
-        const formData = new FormData(e.currentTarget);
-        const details = {
-            amount: Number(formData.get('amount')),
-            bankCountry: formData.get('bankCountry') as string,
-            bankName: formData.get('bankName') as string,
-            accountNumber: formData.get('accountNumber') as string,
-        };
-        onSubmit(details);
+        if (validate()) {
+            onSubmit({
+                amount: Number(formData.amount),
+                bankCountry: formData.bankCountry,
+                bankName: formData.bankName,
+                accountNumber: formData.accountNumber,
+            });
+        }
     };
 
     return (
@@ -138,11 +173,12 @@ const WithdrawalModal: React.FC<{ isOpen: boolean, onClose: () => void, balance:
                     <div className="p-6 space-y-4">
                         <div>
                             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Amount</label>
-                            <input name="amount" type="number" step="0.01" max={balance} defaultValue={balance.toFixed(2)} required className="mt-1 block w-full bg-gray-100 dark:bg-gray-700 border-transparent rounded-md p-2 focus:ring-primary-500 focus:border-primary-500" />
+                            <input name="amount" type="number" step="0.01" max={balance} value={formData.amount} onChange={handleChange} required className="mt-1 block w-full bg-gray-100 dark:bg-gray-700 border-transparent rounded-md p-2 focus:ring-primary-500 focus:border-primary-500" />
+                            {errors.amount && <p className="text-red-500 text-xs mt-1">{errors.amount}</p>}
                         </div>
                          <div>
                             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Bank Country</label>
-                            <select name="bankCountry" required className="mt-1 block w-full bg-gray-100 dark:bg-gray-700 border-transparent rounded-md p-2 focus:ring-primary-500 focus:border-primary-500">
+                            <select name="bankCountry" value={formData.bankCountry} onChange={handleChange} required className="mt-1 block w-full bg-gray-100 dark:bg-gray-700 border-transparent rounded-md p-2 focus:ring-primary-500 focus:border-primary-500">
                                 <option>United States</option>
                                 <option>Canada</option>
                                 <option>United Kingdom</option>
@@ -152,11 +188,13 @@ const WithdrawalModal: React.FC<{ isOpen: boolean, onClose: () => void, balance:
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Bank Name</label>
-                            <input name="bankName" type="text" placeholder="e.g., Chase Bank" required className="mt-1 block w-full bg-gray-100 dark:bg-gray-700 border-transparent rounded-md p-2 focus:ring-primary-500 focus:border-primary-500" />
+                            <input name="bankName" type="text" placeholder="e.g., Chase Bank" value={formData.bankName} onChange={handleChange} required className="mt-1 block w-full bg-gray-100 dark:bg-gray-700 border-transparent rounded-md p-2 focus:ring-primary-500 focus:border-primary-500" />
+                            {errors.bankName && <p className="text-red-500 text-xs mt-1">{errors.bankName}</p>}
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Account Number</label>
-                            <input name="accountNumber" type="text" placeholder="Enter your bank account number" required className="mt-1 block w-full bg-gray-100 dark:bg-gray-700 border-transparent rounded-md p-2 focus:ring-primary-500 focus:border-primary-500" />
+                            <input name="accountNumber" type="text" placeholder="Enter your bank account number" value={formData.accountNumber} onChange={handleChange} required className="mt-1 block w-full bg-gray-100 dark:bg-gray-700 border-transparent rounded-md p-2 focus:ring-primary-500 focus:border-primary-500" />
+                             {errors.accountNumber && <p className="text-red-500 text-xs mt-1">{errors.accountNumber}</p>}
                         </div>
                     </div>
                     <div className="p-6 bg-gray-50 dark:bg-gray-900 rounded-b-lg">

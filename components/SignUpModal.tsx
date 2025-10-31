@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { CloseIcon, UserIcon, BriefcaseIcon } from './icons';
 import { UserRole } from '../types';
 
@@ -10,7 +10,7 @@ interface AuthModalProps {
 }
 
 const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLogin, onSignUp }) => {
-    const [authMode, setAuthMode] = useState<'login' | 'signup'>('login');
+    const [authMode, setAuthMode] = useState<'login' | 'signup' | 'verify'>('login');
     const [selectedRole, setSelectedRole] = useState<UserRole>(UserRole.Engager);
     
     // State for all form fields
@@ -18,7 +18,29 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLogin, onSignU
     const [password, setPassword] = useState('');
     const [name, setName] = useState('');
 
-    if (!isOpen) return null;
+    // State for verification flow
+    const [verificationCode, setVerificationCode] = useState('');
+    const [userInputCode, setUserInputCode] = useState('');
+    const [verificationError, setVerificationError] = useState('');
+    const [pendingUserData, setPendingUserData] = useState<{role: UserRole, name: string, email: string} | null>(null);
+
+    // Reset state when modal is closed
+    useEffect(() => {
+        if (!isOpen) {
+            setTimeout(() => {
+                setAuthMode('login');
+                setSelectedRole(UserRole.Engager);
+                setEmail('');
+                setPassword('');
+                setName('');
+                setVerificationCode('');
+                setUserInputCode('');
+                setVerificationError('');
+                setPendingUserData(null);
+            }, 300); // Delay to allow fade-out animation
+        }
+    }, [isOpen]);
+
 
     const getRoleButtonStyle = (role: UserRole) => {
         return selectedRole === role
@@ -33,7 +55,26 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLogin, onSignU
 
     const handleSignUpSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        onSignUp(selectedRole, name, email);
+        // Generate a 6-digit code
+        const code = Math.floor(100000 + Math.random() * 900000).toString();
+        setVerificationCode(code);
+        setPendingUserData({ role: selectedRole, name, email });
+        
+        // Simulate sending email
+        alert(`Your EngagePay verification code is: ${code}`);
+
+        setAuthMode('verify');
+    };
+
+    const handleVerificationSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (userInputCode === verificationCode) {
+            if (pendingUserData) {
+                onSignUp(pendingUserData.role, pendingUserData.name, pendingUserData.email);
+            }
+        } else {
+            setVerificationError('Invalid code. Please try again.');
+        }
     };
 
     return (
@@ -43,7 +84,9 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLogin, onSignU
                     <div>
                         <h3 className="text-xl font-bold">Welcome to EngagePay</h3>
                         <p className="text-sm text-gray-500 dark:text-gray-400">
-                           {authMode === 'login' ? 'Log in to your account' : 'Create a new account'}
+                           {authMode === 'login' && 'Log in to your account'}
+                           {authMode === 'signup' && 'Create a new account'}
+                           {authMode === 'verify' && 'Verify your email address'}
                         </p>
                     </div>
                     <button onClick={onClose} className="p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700">
@@ -51,7 +94,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLogin, onSignU
                     </button>
                 </div>
                 <div className="p-6">
-                    {authMode === 'login' ? (
+                    {authMode === 'login' && (
                         <form className="space-y-4" onSubmit={handleLoginSubmit}>
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Email Address</label>
@@ -68,7 +111,8 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLogin, onSignU
                                 Don't have an account? <button type="button" onClick={() => setAuthMode('signup')} className="font-semibold text-primary-600 hover:underline">Sign up</button>.
                             </p>
                         </form>
-                    ) : (
+                    )} 
+                    {authMode === 'signup' && (
                         <form className="space-y-4" onSubmit={handleSignUpSubmit}>
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">I am a...</label>
@@ -101,6 +145,32 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLogin, onSignU
                             </button>
                              <p className="text-center text-xs text-gray-500 dark:text-gray-400">
                                 Already have an account? <button type="button" onClick={() => setAuthMode('login')} className="font-semibold text-primary-600 hover:underline">Log in</button>.
+                            </p>
+                        </form>
+                    )}
+                    {authMode === 'verify' && (
+                         <form className="space-y-4" onSubmit={handleVerificationSubmit}>
+                            <p className="text-center text-sm text-gray-600 dark:text-gray-400">
+                                A 6-digit verification code has been sent to <span className="font-semibold text-gray-800 dark:text-gray-200">{pendingUserData?.email}</span>. Please enter it below.
+                            </p>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Verification Code</label>
+                                <input 
+                                    type="text" 
+                                    value={userInputCode} 
+                                    onChange={e => setUserInputCode(e.target.value)} 
+                                    placeholder="123456" 
+                                    required 
+                                    maxLength={6}
+                                    className="mt-1 block w-full bg-gray-100 dark:bg-gray-700 border-transparent rounded-md p-2 text-center text-lg tracking-[0.5em] focus:ring-primary-500 focus:border-primary-500" 
+                                />
+                            </div>
+                            {verificationError && <p className="text-sm text-red-500 text-center">{verificationError}</p>}
+                            <button type="submit" className="w-full bg-primary-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-primary-700 transition-colors duration-200">
+                                Verify Account
+                            </button>
+                            <p className="text-center text-xs text-gray-500 dark:text-gray-400">
+                                Didn't receive a code? <button type="button" className="font-semibold text-primary-600 hover:underline">Resend code</button>.
                             </p>
                         </form>
                     )}
