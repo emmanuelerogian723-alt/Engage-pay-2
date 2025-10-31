@@ -1,0 +1,7 @@
+{
+  "name": "Copy of EngagePay",
+  "description": "EngagePay is a two-sided engagement marketplace where creators and brands can pay for social media engagement, and users can complete tasks to earn rewards. The app features role-based dashboards, campaign creation, a task marketplace, gamification elements, and an admin panel for oversight.",
+  "requestFramePermissions": [
+    "geolocation"
+  ]
+}
