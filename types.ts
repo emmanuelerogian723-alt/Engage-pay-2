@@ -7,6 +7,12 @@ export enum UserRole {
   Admin = 'Admin',
 }
 
+export interface SocialLinks {
+  instagram?: string;
+  twitter?: string;
+  linkedin?: string;
+}
+
 // Base User Interface
 export interface BaseUser {
   id: string;
@@ -14,6 +20,7 @@ export interface BaseUser {
   name: string;
   role: UserRole;
   avatar: string;
+  socialLinks?: SocialLinks;
 }
 
 // Specific User Types
@@ -36,6 +43,7 @@ export interface Engager extends BaseUser {
   accountNumber?: string;
   phoneNumber?: string;
   isVerified: boolean;
+  taskStreak: number;
 }
 
 // Union type for any user
@@ -61,6 +69,8 @@ export enum EngagementType {
 export interface Campaign {
   id: string;
   creatorId: string;
+  creatorName: string;
+  creatorAvatar: string;
   name: string;
   platform: SocialPlatform;
   engagementType: EngagementType;
@@ -68,10 +78,12 @@ export interface Campaign {
   completedTasks: number;
   totalTasks: number;
   status: 'Active' | 'Paused' | 'Completed';
+  link: string; // Link to the content for the campaign's tasks
 }
 
 export interface Task {
   id: string;
+  campaignId: string;
   platform: SocialPlatform;
   engagementType: EngagementType;
   payout: number;
@@ -87,6 +99,15 @@ export interface Submission {
     screenshotUrl: string;
     status: 'Pending' | 'Approved' | 'Rejected';
     submittedAt: string;
+}
+
+export interface DepositRequest {
+    id: string;
+    userId: string;
+    amount: number;
+    paymentMethod: 'Card' | 'Bank Transfer';
+    status: 'Pending' | 'Approved' | 'Rejected';
+    requestedAt: string;
 }
 
 export interface WithdrawalRequest {
@@ -128,6 +149,8 @@ export interface Badge {
   name:string;
   icon: React.ElementType;
   color: string;
+  description: string;
+  hasBadge: (user: Engager) => boolean;
 }
 
 export interface ChatMessage {

@@ -61,7 +61,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLogin, onSignU
         setPendingUserData({ role: selectedRole, name, email });
         
         // Simulate sending email
-        alert(`Your EngagePay verification code is: ${code}`);
+        alert(`Your Erogian Social verification code is: ${code}`);
 
         setAuthMode('verify');
     };
@@ -82,7 +82,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLogin, onSignU
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-md m-4 transform transition-all duration-300 scale-95 opacity-0 animate-fade-in-scale" onClick={e => e.stopPropagation()}>
                 <div className="p-6 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
                     <div>
-                        <h3 className="text-xl font-bold">Welcome to EngagePay</h3>
+                        <h3 className="text-xl font-bold">Welcome to Erogian Social</h3>
                         <p className="text-sm text-gray-500 dark:text-gray-400">
                            {authMode === 'login' && 'Log in to your account'}
                            {authMode === 'signup' && 'Create a new account'}

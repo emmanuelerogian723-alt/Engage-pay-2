@@ -1,14 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import Header from './components/Header';
 import CreatorDashboard from './components/CreatorDashboard';
 import EngagerDashboard from './components/EngagerDashboard';
 import AdminDashboard from './components/AdminDashboard';
 import UserProfile from './components/UserProfile';
-import { UserRole, User, Announcement, Submission, WithdrawalRequest, Campaign, Engager, Creator, Transaction, Notification } from './types';
+import { UserRole, User, Announcement, Submission, WithdrawalRequest, Campaign, Engager, Creator, Transaction, Notification, DepositRequest, Task } from './types';
 import Chatbot from './components/Chatbot';
 import AuthModal from './components/SignUpModal';
 import { ChatIcon, TrendingUpIcon } from './components/icons';
-import { MOCK_ANNOUNCEMENTS, MOCK_SUBMISSIONS, MOCK_WITHDRAWAL_REQUESTS, MOCK_USERS, MOCK_CAMPAIGNS } from './constants';
+import { MOCK_ANNOUNCEMENTS, MOCK_SUBMISSIONS, MOCK_WITHDRAWAL_REQUESTS, MOCK_USERS, MOCK_CAMPAIGNS, MOCK_DEPOSIT_REQUESTS, MOCK_TASKS } from './constants';
 
 // Helper for local storage
 const useStickyState = <T,>(defaultValue: T, key: string): [T, React.Dispatch<React.SetStateAction<T>>] => {
@@ -34,13 +34,15 @@ const App: React.FC = () => {
   const [currentPage, setCurrentPage] = useState<'dashboard' | 'profile'>('dashboard');
   
   // "Database" state with persistence
-  const [users, setUsers] = useStickyState<Record<string, User>>(MOCK_USERS, 'engagepay-users');
-  const [currentUserId, setCurrentUserId] = useStickyState<string | null>(null, 'engagepay-currentUser');
-  const [announcements, setAnnouncements] = useStickyState<Announcement[]>(MOCK_ANNOUNCEMENTS, 'engagepay-announcements');
-  const [submissions, setSubmissions] = useStickyState<Submission[]>(MOCK_SUBMISSIONS, 'engagepay-submissions');
-  const [withdrawalRequests, setWithdrawalRequests] = useStickyState<WithdrawalRequest[]>(MOCK_WITHDRAWAL_REQUESTS, 'engagepay-withdrawals');
-  const [campaigns, setCampaigns] = useStickyState<Campaign[]>(MOCK_CAMPAIGNS, 'engagepay-campaigns');
-  const [notifications, setNotifications] = useStickyState<Notification[]>([], 'engagepay-notifications');
+  const [users, setUsers] = useStickyState<Record<string, User>>(MOCK_USERS, 'erogiansocial-users');
+  const [currentUserId, setCurrentUserId] = useStickyState<string | null>(null, 'erogiansocial-currentUser');
+  const [announcements, setAnnouncements] = useStickyState<Announcement[]>(MOCK_ANNOUNCEMENTS, 'erogiansocial-announcements');
+  const [submissions, setSubmissions] = useStickyState<Submission[]>(MOCK_SUBMISSIONS, 'erogiansocial-submissions');
+  const [withdrawalRequests, setWithdrawalRequests] = useStickyState<WithdrawalRequest[]>(MOCK_WITHDRAWAL_REQUESTS, 'erogiansocial-withdrawals');
+  const [depositRequests, setDepositRequests] = useStickyState<DepositRequest[]>(MOCK_DEPOSIT_REQUESTS, 'erogiansocial-deposits');
+  const [campaigns, setCampaigns] = useStickyState<Campaign[]>(MOCK_CAMPAIGNS, 'erogiansocial-campaigns');
+  const [notifications, setNotifications] = useStickyState<Notification[]>([], 'erogiansocial-notifications');
+  const [tasks, setTasks] = useStickyState<Task[]>(MOCK_TASKS, 'erogiansocial-tasks');
 
 
   const currentUser = currentUserId ? users[currentUserId] : null;
@@ -51,7 +53,7 @@ const App: React.FC = () => {
     if (!currentUserId) {
       setAuthModalOpen(true);
     }
-  }, []);
+  }, [currentUserId]);
 
   useEffect(() => {
     if (theme === 'dark') {
@@ -71,7 +73,6 @@ const App: React.FC = () => {
       if ((lowerCaseEmail === 'emmanuelerog@gmail.com' || lowerCaseEmail === 'emmanuelerogian723@gmail.com') && pass === 'Erog@0291') {
           foundUser = Object.values(users).find(u => u.role === UserRole.Admin) || null;
       } else {
-          // Simulate finding any other user by email
           foundUser = Object.values(users).find(u => u.email.toLowerCase() === lowerCaseEmail) || null;
       }
       
@@ -91,16 +92,16 @@ const App: React.FC = () => {
 
        if (role === UserRole.Creator) {
            newUser = {
-               id: newId, email, name, role, avatar: `https://picsum.photos/seed/${newId}/40/40`,
+               id: newId, email, name, role, avatar: `https://i.pravatar.cc/40?u=${newId}`,
                walletBalance: 0, transactions: []
            } as Creator;
        } else {
            newUser = {
-               id: newId, email, name, role, avatar: `https://picsum.photos/seed/${newId}/40/40`,
+               id: newId, email, name, role, avatar: `https://i.pravatar.cc/40?u=${newId}`,
                isSubscribed: false, subscriptionPaymentPending: false,
                referrals: [], referralCode: `${name.toUpperCase().slice(0,4)}${Math.floor(Math.random()*1000)}`,
                earnings: 0, rank: Object.keys(users).length + 1, isVerified: false,
-               xp: 0, level: 1,
+               xp: 0, level: 1, taskStreak: 0,
            } as Engager;
        }
        setUsers(prev => ({ ...prev, [newId]: newUser }));
@@ -126,20 +127,46 @@ const App: React.FC = () => {
           handleUpdateUser({ ...currentUser, subscriptionPaymentPending: true });
       }
   };
+  
+  const handleDepositRequest = (amount: number, paymentMethod: 'Card' | 'Bank Transfer') => {
+      if (!currentUser) return;
+      const newRequest: DepositRequest = {
+          id: `dep-${Date.now()}`,
+          userId: currentUser.id,
+          amount,
+          paymentMethod,
+          status: 'Pending',
+          requestedAt: new Date().toISOString(),
+      };
+      setDepositRequests(prev => [newRequest, ...prev]);
+      alert('Your deposit request has been submitted and is pending review.');
+  };
+
+  const userCreatorCampaigns = useMemo(() => {
+      if(currentUser?.role === UserRole.Creator || (currentUser?.role === UserRole.Admin && viewRole === UserRole.Creator)) {
+        return campaigns.filter(c => c.creatorId === currentUser.id)
+      }
+      return [];
+  }, [campaigns, currentUser, viewRole]);
 
   const renderCurrentPage = () => {
     if (!currentUser) {
         if (!isAuthModalOpen) {
             return (
-                <div className="flex flex-col justify-center items-center h-96 text-center">
-                    <TrendingUpIcon className="w-16 h-16 text-primary-300 dark:text-primary-700 mb-4" />
-                    <h1 className="text-2xl font-bold">Welcome to EngagePay</h1>
-                    <p className="text-gray-500 mt-2">Please log in or sign up to continue.</p>
-                    <button 
-                        onClick={() => setAuthModalOpen(true)}
-                        className="mt-6 px-6 py-2 text-sm font-semibold text-white bg-primary-600 rounded-full hover:bg-primary-700 transition-colors duration-200">
-                            Login / Sign Up
-                    </button>
+                <div className="flex flex-col justify-center items-center text-center h-[calc(100vh-200px)] animate-fade-in">
+                    <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-primary-900 via-gray-950 to-gray-950 opacity-50 -z-10"></div>
+                    <div className="relative p-8 rounded-lg">
+                        <TrendingUpIcon className="w-16 h-16 text-primary-400 mx-auto mb-6" />
+                        <h1 className="text-4xl md:text-5xl font-bold font-display text-white mb-4">Welcome to Erogian Social</h1>
+                        <p className="text-lg text-gray-300 max-w-2xl mx-auto">
+                            The ultimate platform to boost your social presence and earn rewards by completing simple tasks.
+                        </p>
+                        <button 
+                            onClick={() => setAuthModalOpen(true)}
+                            className="mt-8 px-8 py-3 text-lg font-semibold text-white bg-primary-600 rounded-full shadow-lg hover:bg-primary-500 transform hover:scale-105 transition-all duration-300">
+                                Get Started
+                        </button>
+                    </div>
                 </div>
             );
         }
@@ -157,14 +184,18 @@ const App: React.FC = () => {
         return <CreatorDashboard 
                     announcements={announcements} 
                     currentUser={currentUser as Creator} 
-                    campaigns={campaigns.filter(c => c.creatorId === currentUser.id)}
+                    campaigns={userCreatorCampaigns}
                     setCampaigns={setCampaigns}
+                    setTasks={setTasks}
                     onUpdateUser={handleUpdateUser}
+                    depositRequests={depositRequests}
+                    onDepositRequest={handleDepositRequest}
                 />;
       case UserRole.Engager:
         return <EngagerDashboard 
                     announcements={announcements} 
                     currentUser={currentUser as Engager} 
+                    tasks={tasks}
                     onPaymentSubmitted={handlePaymentSubmitted} 
                     setSubmissions={setSubmissions}
                     setWithdrawalRequests={setWithdrawalRequests}
@@ -175,23 +206,24 @@ const App: React.FC = () => {
                     announcements={announcements} setAnnouncements={setAnnouncements}
                     submissions={submissions} setSubmissions={setSubmissions}
                     withdrawalRequests={withdrawalRequests} setWithdrawalRequests={setWithdrawalRequests}
+                    depositRequests={depositRequests} setDepositRequests={setDepositRequests}
                     users={users} setUsers={setUsers}
                     campaigns={campaigns}
                     notifications={notifications} setNotifications={setNotifications}
                 />;
       default:
-        return <EngagerDashboard announcements={announcements} currentUser={currentUser as Engager} onPaymentSubmitted={handlePaymentSubmitted} setSubmissions={setSubmissions} setWithdrawalRequests={setWithdrawalRequests} onUpdateUser={handleUpdateUser}/>;
+        return <EngagerDashboard announcements={announcements} currentUser={currentUser as Engager} tasks={tasks} onPaymentSubmitted={handlePaymentSubmitted} setSubmissions={setSubmissions} setWithdrawalRequests={setWithdrawalRequests} onUpdateUser={handleUpdateUser}/>;
     }
   };
 
   return (
-    <div className="bg-gray-100 dark:bg-gray-900 min-h-screen text-gray-800 dark:text-gray-200 font-sans transition-colors duration-300">
+    <div className="bg-gray-50 dark:bg-gray-950 min-h-screen text-gray-800 dark:text-gray-200 font-sans transition-colors duration-300">
       <Header
         currentUser={currentUser}
         viewRole={viewRole}
         setUserRole={(role) => {
             setViewRole(role);
-            setCurrentPage('dashboard'); // Switch back to dashboard when role changes
+            setCurrentPage('dashboard');
         }}
         theme={theme}
         toggleTheme={toggleTheme}
@@ -202,8 +234,10 @@ const App: React.FC = () => {
         notifications={notifications}
         setNotifications={setNotifications}
       />
-      <main className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto">
-        {renderCurrentPage()}
+      <main className="p-4 sm:p-6 lg:p-8">
+        <div className="max-w-7xl mx-auto">
+            {renderCurrentPage()}
+        </div>
       </main>
       
       {isAuthModalOpen && <AuthModal isOpen={isAuthModalOpen} onClose={() => setAuthModalOpen(false)} onLogin={handleLogin} onSignUp={handleSignUp} />}

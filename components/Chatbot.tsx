@@ -5,7 +5,7 @@ import { SendIcon, BrainIcon, CloseIcon, MapPinIcon } from './icons';
 
 const Chatbot: React.FC<{ isOpen: boolean; onClose: () => void; }> = ({ isOpen, onClose }) => {
     const [messages, setMessages] = useState<ChatMessage[]>([
-        { id: 'initial', role: 'model', text: 'Hello! I am your EngagePay assistant. How can I help you today?' }
+        { id: 'initial', role: 'model', text: 'Hello! I am your Erogian Social assistant. How can I help you today?' }
     ]);
     const [inputValue, setInputValue] = useState('');
     const [isLoading, setIsLoading] = useState(false);
@@ -112,7 +112,7 @@ const Chatbot: React.FC<{ isOpen: boolean; onClose: () => void; }> = ({ isOpen, 
     return (
         <div className={`fixed bottom-24 right-6 w-full max-w-md bg-white dark:bg-gray-800 rounded-lg shadow-2xl z-50 transition-all duration-300 ${isOpen ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10 pointer-events-none'}`}>
             <header className="bg-gray-100 dark:bg-gray-900 p-4 rounded-t-lg flex justify-between items-center border-b border-gray-200 dark:border-gray-700">
-                <h3 className="text-lg font-bold">EngagePay Assistant</h3>
+                <h3 className="text-lg font-bold">Erogian Social Assistant</h3>
                 <div className="flex items-center space-x-2">
                     <button 
                         onClick={() => setThinkingMode(!isThinkingMode)} 
