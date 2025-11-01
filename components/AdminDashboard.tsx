@@ -1,45 +1,38 @@
 import React, { useState } from 'react';
-import { Campaign, Engager, Submission, WithdrawalRequest, Announcement, User, UserRole, Creator, Notification, Task, DepositRequest } from '../types';
-import { CheckIcon, XIcon, BarChartIcon, CheckCircleIcon, MegaphoneIcon, DollarSignIcon, UsersIcon, BriefcaseIcon } from './icons';
+import { Campaign, Engager, Submission, WithdrawalRequest, Announcement, User, UserRole, Creator, Notification, DepositRequest } from '../types';
+import { CheckIcon, XIcon, BarChartIcon, MegaphoneIcon, DollarSignIcon, UsersIcon, BriefcaseIcon } from './icons';
 import { MOCK_TASKS } from '../constants';
-
+import { useAppContext } from '../contexts/AppContext';
 
 type AdminTab = 'Analytics' | 'Campaigns' | 'Users' | 'Task Approvals' | 'Deposit Approvals' | 'Payment Approvals' | 'Announcements';
 
-interface AdminDashboardProps {
-    submissions: Submission[];
-    setSubmissions: React.Dispatch<React.SetStateAction<Submission[]>>;
-    withdrawalRequests: WithdrawalRequest[];
-    setWithdrawalRequests: React.Dispatch<React.SetStateAction<WithdrawalRequest[]>>;
-    depositRequests: DepositRequest[];
-    setDepositRequests: React.Dispatch<React.SetStateAction<DepositRequest[]>>;
-    announcements: Announcement[];
-    setAnnouncements: React.Dispatch<React.SetStateAction<Announcement[]>>;
-    users: Record<string, User>;
-    setUsers: React.Dispatch<React.SetStateAction<Record<string, User>>>;
-    campaigns: Campaign[];
-    notifications: Notification[];
-    setNotifications: React.Dispatch<React.SetStateAction<Notification[]>>;
-}
-
-const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
+const AdminDashboard: React.FC = () => {
     const [activeTab, setActiveTab] = useState<AdminTab>('Analytics');
+    const { 
+        users, setUsers,
+        campaigns,
+        submissions, setSubmissions,
+        withdrawalRequests, setWithdrawalRequests,
+        depositRequests, setDepositRequests,
+        announcements, setAnnouncements,
+        setNotifications
+    } = useAppContext();
 
     const renderTabContent = () => {
         switch (activeTab) {
             case 'Analytics': return <Analytics 
-                                        users={Object.values(props.users)} 
-                                        campaigns={props.campaigns} 
-                                        withdrawalRequests={props.withdrawalRequests}
-                                        submissions={props.submissions}
-                                        depositRequests={props.depositRequests}
+                                        users={Object.values(users)} 
+                                        campaigns={campaigns} 
+                                        withdrawalRequests={withdrawalRequests}
+                                        submissions={submissions}
+                                        depositRequests={depositRequests}
                                      />;
-            case 'Campaigns': return <CampaignsTable campaigns={props.campaigns} />;
-            case 'Users': return <UsersTable users={Object.values(props.users)} setUsers={props.setUsers} setNotifications={props.setNotifications} />;
-            case 'Task Approvals': return <TaskApprovals submissions={props.submissions} setSubmissions={props.setSubmissions} users={props.users} setUsers={props.setUsers} />;
-            case 'Deposit Approvals': return <DepositApprovals requests={props.depositRequests} setRequests={props.setDepositRequests} users={props.users} setUsers={props.setUsers} setNotifications={props.setNotifications} />;
-            case 'Payment Approvals': return <PaymentApprovals requests={props.withdrawalRequests} setRequests={props.setWithdrawalRequests} users={props.users} setUsers={props.setUsers} setNotifications={props.setNotifications} />;
-            case 'Announcements': return <Announcements announcements={props.announcements} setAnnouncements={props.setAnnouncements} />;
+            case 'Campaigns': return <CampaignsTable campaigns={campaigns} />;
+            case 'Users': return <UsersTable users={Object.values(users)} setUsers={setUsers} setNotifications={setNotifications} />;
+            case 'Task Approvals': return <TaskApprovals submissions={submissions} setSubmissions={setSubmissions} users={users} setUsers={setUsers} />;
+            case 'Deposit Approvals': return <DepositApprovals requests={depositRequests} setRequests={setDepositRequests} users={users} setUsers={setUsers} setNotifications={setNotifications} />;
+            case 'Payment Approvals': return <PaymentApprovals requests={withdrawalRequests} setRequests={setWithdrawalRequests} users={users} setUsers={setUsers} setNotifications={setNotifications} />;
+            case 'Announcements': return <Announcements announcements={announcements} setAnnouncements={setAnnouncements} />;
             default: return null;
         }
     };

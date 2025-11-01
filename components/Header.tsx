@@ -1,22 +1,20 @@
 import React, { useState, useMemo } from 'react';
-import { User, UserRole, Notification } from '../types';
+import { UserRole } from '../types';
 import { SunIcon, MoonIcon, TrendingUpIcon, BellIcon, LogoutIcon } from './icons';
+import { useAppContext } from '../contexts/AppContext';
 
 interface HeaderProps {
-  currentUser: User | null;
   viewRole: UserRole; // This is the role the admin is currently viewing as
   setUserRole: (role: UserRole) => void;
   theme: 'light' | 'dark';
   toggleTheme: () => void;
-  onAuthClick: () => void;
   onProfileClick: () => void;
   onLogoClick: () => void;
   onLogout: () => void;
-  notifications: Notification[];
-  setNotifications: React.Dispatch<React.SetStateAction<Notification[]>>;
 }
 
-const Header: React.FC<HeaderProps> = ({ currentUser, viewRole, setUserRole, theme, toggleTheme, onAuthClick, onProfileClick, onLogoClick, onLogout, notifications, setNotifications }) => {
+const Header: React.FC<HeaderProps> = ({ viewRole, setUserRole, theme, toggleTheme, onProfileClick, onLogoClick, onLogout }) => {
+  const { currentUser, setAuthModalOpen, notifications, setNotifications } = useAppContext();
   const [isNotificationsOpen, setNotificationsOpen] = useState(false);
   const roles = Object.values(UserRole);
 
@@ -41,7 +39,6 @@ const Header: React.FC<HeaderProps> = ({ currentUser, viewRole, setUserRole, the
           prev.map(n => n.userId === currentUser.id ? { ...n, read: true } : n)
       );
   };
-
 
   const getRoleButtonStyle = (role: UserRole) => {
     return viewRole === role
@@ -137,7 +134,7 @@ const Header: React.FC<HeaderProps> = ({ currentUser, viewRole, setUserRole, the
                 </>
             ) : (
                 <button 
-                    onClick={onAuthClick}
+                    onClick={() => setAuthModalOpen(true)}
                     className="px-4 py-2 text-sm font-semibold text-white bg-primary-600 rounded-full hover:bg-primary-500 transition-colors duration-200">
                         Login / Sign Up
                 </button>

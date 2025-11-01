@@ -1,15 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { CloseIcon, UserIcon, BriefcaseIcon } from './icons';
 import { UserRole } from '../types';
+import { useAppContext } from '../contexts/AppContext';
 
 interface AuthModalProps {
     isOpen: boolean;
     onClose: () => void;
-    onLogin: (email: string, pass: string) => void;
-    onSignUp: (role: UserRole, name: string, email: string) => void;
 }
 
-const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLogin, onSignUp }) => {
+const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
+    const { login, signUp } = useAppContext();
     const [authMode, setAuthMode] = useState<'login' | 'signup' | 'verify'>('login');
     const [selectedRole, setSelectedRole] = useState<UserRole>(UserRole.Engager);
     
@@ -23,6 +23,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLogin, onSignU
     const [userInputCode, setUserInputCode] = useState('');
     const [verificationError, setVerificationError] = useState('');
     const [pendingUserData, setPendingUserData] = useState<{role: UserRole, name: string, email: string} | null>(null);
+    const [verificationMessage, setVerificationMessage] = useState('');
 
     // Reset state when modal is closed
     useEffect(() => {
@@ -37,6 +38,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLogin, onSignU
                 setUserInputCode('');
                 setVerificationError('');
                 setPendingUserData(null);
+                setVerificationMessage('');
             }, 300); // Delay to allow fade-out animation
         }
     }, [isOpen]);
@@ -50,7 +52,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLogin, onSignU
 
     const handleLoginSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        onLogin(email, password);
+        login(email, password);
     };
 
     const handleSignUpSubmit = (e: React.FormEvent) => {
@@ -61,7 +63,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLogin, onSignU
         setPendingUserData({ role: selectedRole, name, email });
         
         // Simulate sending email
-        alert(`Your Erogian Social verification code is: ${code}`);
+        setVerificationMessage(`For demo purposes, your verification code is: ${code}`);
 
         setAuthMode('verify');
     };
@@ -70,7 +72,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLogin, onSignU
         e.preventDefault();
         if (userInputCode === verificationCode) {
             if (pendingUserData) {
-                onSignUp(pendingUserData.role, pendingUserData.name, pendingUserData.email);
+                signUp(pendingUserData.role, pendingUserData.name, pendingUserData.email);
             }
         } else {
             setVerificationError('Invalid code. Please try again.');
@@ -153,12 +155,17 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLogin, onSignU
                             <p className="text-center text-sm text-gray-600 dark:text-gray-400">
                                 A 6-digit verification code has been sent to <span className="font-semibold text-gray-800 dark:text-gray-200">{pendingUserData?.email}</span>. Please enter it below.
                             </p>
+                             {verificationMessage && (
+                                <div className="p-3 bg-blue-50 dark:bg-blue-950/50 rounded-lg text-center border border-blue-200 dark:border-blue-800">
+                                    <p className="text-sm font-semibold text-blue-800 dark:text-blue-200">{verificationMessage}</p>
+                                </div>
+                            )}
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Verification Code</label>
                                 <input 
                                     type="text" 
                                     value={userInputCode} 
-                                    onChange={e => setUserInputCode(e.target.value)} 
+                                    onChange={e => { setUserInputCode(e.target.value); setVerificationError(''); }} 
                                     placeholder="123456" 
                                     required 
                                     maxLength={6}

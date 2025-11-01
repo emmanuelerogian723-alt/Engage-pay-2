@@ -1,13 +1,11 @@
 import React, { useState, useRef } from 'react';
 import { UserRole, Engager, Campaign, Badge, User, Creator, SocialLinks } from '../types';
 import { MOCK_BADGES, MOCK_CAMPAIGNS, PLATFORM_ICONS } from '../constants';
-import { ArrowLeftIcon, CheckCircleIcon, DollarSignIcon, BarChartIcon, TrendingUpIcon, TrophyIcon, UploadIcon, ShareIcon, CopyIcon, StarIcon, InstagramIcon, TwitterIcon, LinkedInIcon } from './icons';
+import { ArrowLeftIcon, CheckCircleIcon, DollarSignIcon, BarChartIcon, TrendingUpIcon, TrophyIcon, UploadIcon, CopyIcon, StarIcon, InstagramIcon, TwitterIcon, LinkedInIcon } from './icons';
+import { useAppContext } from '../contexts/AppContext';
 
 interface UserProfileProps {
-    currentUser: User | null;
     onNavigateBack: () => void;
-    onUpdateUser: (updatedUser: User) => void;
-    users: Record<string, User>; // Pass all users to find referral data
 }
 
 // Reusable components
@@ -349,7 +347,9 @@ const CreatorProfile: React.FC<{ currentUser: Creator, onUpdateUser: (updatedUse
     );
 };
 
-const UserProfile: React.FC<UserProfileProps> = ({ currentUser, onNavigateBack, onUpdateUser, users }) => {
+const UserProfile: React.FC<UserProfileProps> = ({ onNavigateBack }) => {
+    const { currentUser, updateUser } = useAppContext();
+
     if (!currentUser) {
         return (
             <div className="text-center p-8">
@@ -371,8 +371,8 @@ const UserProfile: React.FC<UserProfileProps> = ({ currentUser, onNavigateBack, 
             </div>
 
             {isEngager ? 
-                <EngagerProfile currentUser={currentUser as Engager} onUpdateUser={onUpdateUser} /> :
-                <CreatorProfile currentUser={currentUser as Creator} onUpdateUser={onUpdateUser} />
+                <EngagerProfile currentUser={currentUser as Engager} onUpdateUser={updateUser} /> :
+                <CreatorProfile currentUser={currentUser as Creator} onUpdateUser={updateUser} />
             }
         </div>
     );

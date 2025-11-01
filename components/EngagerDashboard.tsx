@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { MOCK_LEADERBOARD, PLATFORM_ICONS } from '../constants';
 import { Task, Engager, Announcement, Submission, WithdrawalRequest, SocialPlatform } from '../types';
 import { LikeIcon, CommentIcon, FollowIcon, ViewIcon, ShareIcon, WalletIcon, LinkIcon, UploadIcon, CloseIcon, MegaphoneIcon, SearchIcon, StarIcon, CheckCircleIcon, FlameIcon, LockIcon, CreditCardIcon } from './icons';
+import { useAppContext } from '../contexts/AppContext';
 
 const ENGAGEMENT_ICONS: { [key:string]: React.ElementType } = {
   Like: LikeIcon, Comment: CommentIcon, Follow: FollowIcon, View: ViewIcon, Share: ShareIcon,
@@ -281,16 +282,6 @@ const TaskCard: React.FC<{ task: Task, onSubmit: () => void }> = ({ task, onSubm
   );
 };
 
-interface EngagerDashboardProps {
-    announcements: Announcement[];
-    currentUser: Engager;
-    tasks: Task[];
-    onPaymentSubmitted: () => void;
-    setSubmissions: React.Dispatch<React.SetStateAction<Submission[]>>;
-    setWithdrawalRequests: React.Dispatch<React.SetStateAction<WithdrawalRequest[]>>;
-    onUpdateUser: (user: Engager) => void;
-}
-
 const SubscriptionGate: React.FC<{ onOpenModal: () => void; isPending: boolean; }> = ({ onOpenModal, isPending }) => (
     <div className="text-center py-16 bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-800 animate-fade-in">
         <div className="w-16 h-16 mx-auto bg-primary-100 dark:bg-primary-950 rounded-full flex items-center justify-center mb-4">
@@ -311,7 +302,17 @@ const SubscriptionGate: React.FC<{ onOpenModal: () => void; isPending: boolean; 
     </div>
 );
 
-const EngagerDashboard: React.FC<EngagerDashboardProps> = ({ announcements, currentUser, tasks, onPaymentSubmitted, setSubmissions, setWithdrawalRequests, onUpdateUser }) => {
+const EngagerDashboard: React.FC = () => {
+  const {
+      announcements,
+      currentUser,
+      tasks,
+      submitPayment,
+      setSubmissions,
+      setWithdrawalRequests,
+      updateUser
+  } = useAppContext();
+
   const [isWithdrawalModalOpen, setWithdrawalModalOpen] = useState(false);
   const [isSubscriptionModalOpen, setSubscriptionModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -322,9 +323,12 @@ const EngagerDashboard: React.FC<EngagerDashboardProps> = ({ announcements, curr
   const STREAK_GOAL = 5;
   const STREAK_BONUS_XP = 50;
 
+  const engagerUser = currentUser as Engager;
+  if (!engagerUser) return null; // or a loading spinner
+
   const handleWithdrawalSubmit = (details: Omit<WithdrawalRequest, 'id' | 'userId' | 'status' | 'requestedAt'>) => {
       const newRequest: WithdrawalRequest = {
-          ...details, id: `wr-${Date.now()}`, userId: currentUser.id, status: 'Pending', requestedAt: new Date().toISOString()
+          ...details, id: `wr-${Date.now()}`, userId: engagerUser.id, status: 'Pending', requestedAt: new Date().toISOString()
       };
       setWithdrawalRequests(prev => [newRequest, ...prev]);
       alert('Withdrawal request submitted successfully!');
@@ -332,7 +336,7 @@ const EngagerDashboard: React.FC<EngagerDashboardProps> = ({ announcements, curr
   };
   
   const handleTaskSubmit = (task: Task) => {
-      const updatedUser = { ...currentUser };
+      const updatedUser = { ...engagerUser };
       updatedUser.taskStreak = (updatedUser.taskStreak || 0) + 1;
       let bonusMessage = '';
 
@@ -342,10 +346,10 @@ const EngagerDashboard: React.FC<EngagerDashboardProps> = ({ announcements, curr
           updatedUser.taskStreak = 0; // Reset streak
           bonusMessage = ` Streak Bonus! +${STREAK_BONUS_XP} XP!`;
       }
-      onUpdateUser(updatedUser);
+      updateUser(updatedUser);
 
       const newSubmission: Submission = {
-          id: `sub-${Date.now()}`, taskId: task.id, taskDescription: task.description, userId: currentUser.id,
+          id: `sub-${Date.now()}`, taskId: task.id, taskDescription: task.description, userId: engagerUser.id,
           screenshotUrl: 'https://picsum.photos/seed/newsub/300/200', status: 'Pending', submittedAt: new Date().toISOString()
       };
       setSubmissions(prev => [newSubmission, ...prev]);
@@ -354,7 +358,7 @@ const EngagerDashboard: React.FC<EngagerDashboardProps> = ({ announcements, curr
   };
   
   const handleSubscriptionSubmit = () => {
-    onPaymentSubmitted();
+    submitPayment();
     setSubscriptionModalOpen(false);
   };
 
@@ -372,10 +376,10 @@ const EngagerDashboard: React.FC<EngagerDashboardProps> = ({ announcements, curr
 
   return (
     <div className="space-y-8 animate-fade-in">
-      {isWithdrawalModalOpen && <WithdrawalModal isOpen={isWithdrawalModalOpen} onClose={() => setWithdrawalModalOpen(false)} balance={currentUser.earnings} onSubmit={handleWithdrawalSubmit} />}
-      {isSubscriptionModalOpen && <SubscriptionModal onPaymentSubmitted={handleSubscriptionSubmit} onClose={() => setSubscriptionModalOpen(false)} isPending={!!currentUser.subscriptionPaymentPending} />}
+      {isWithdrawalModalOpen && <WithdrawalModal isOpen={isWithdrawalModalOpen} onClose={() => setWithdrawalModalOpen(false)} balance={engagerUser.earnings} onSubmit={handleWithdrawalSubmit} />}
+      {isSubscriptionModalOpen && <SubscriptionModal onPaymentSubmitted={handleSubscriptionSubmit} onClose={() => setSubscriptionModalOpen(false)} isPending={!!engagerUser.subscriptionPaymentPending} />}
       
-      <h1 className="text-3xl font-bold font-display">Welcome back, {currentUser.name.split(' ')[0]}!</h1>
+      <h1 className="text-3xl font-bold font-display">Welcome back, {engagerUser.name.split(' ')[0]}!</h1>
       
       {announcements.length > 0 && (
            <section className="bg-primary-50 dark:bg-primary-950 p-4 rounded-xl border border-primary-200 dark:border-primary-800">
@@ -390,16 +394,16 @@ const EngagerDashboard: React.FC<EngagerDashboardProps> = ({ announcements, curr
       )}
 
       <section className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <Wallet onWithdraw={() => setWithdrawalModalOpen(true)} balance={currentUser.earnings} />
-          <GamificationStats xp={currentUser.xp} level={currentUser.level} />
-          <StreakTracker currentStreak={currentUser.taskStreak || 0} goal={STREAK_GOAL} />
+          <Wallet onWithdraw={() => setWithdrawalModalOpen(true)} balance={engagerUser.earnings} />
+          <GamificationStats xp={engagerUser.xp} level={engagerUser.level} />
+          <StreakTracker currentStreak={engagerUser.taskStreak || 0} goal={STREAK_GOAL} />
       </section>
       
       <section>
         <h2 className="text-2xl font-bold font-display mb-4">Task Marketplace</h2>
         
-        {!currentUser.isSubscribed ? (
-            <SubscriptionGate onOpenModal={() => setSubscriptionModalOpen(true)} isPending={!!currentUser.subscriptionPaymentPending} />
+        {!engagerUser.isSubscribed ? (
+            <SubscriptionGate onOpenModal={() => setSubscriptionModalOpen(true)} isPending={!!engagerUser.subscriptionPaymentPending} />
         ) : (
             <>
                 {submissionConfirmation && (

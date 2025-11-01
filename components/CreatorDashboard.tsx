@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Campaign, EngagementType, SocialPlatform, Announcement, Creator, Transaction, DepositRequest, Task } from '../types';
 import { PLATFORM_ICONS } from '../constants';
-import { TrendingUpIcon, DollarSignIcon, UsersIcon, CheckCircleIcon, CloseIcon, CreditCardIcon, BankIcon, LinkIcon, MegaphoneIcon, WalletIcon } from './icons';
+import { TrendingUpIcon, DollarSignIcon, UsersIcon, CloseIcon, CreditCardIcon, BankIcon, MegaphoneIcon, WalletIcon } from './icons';
+import { useAppContext } from '../contexts/AppContext';
 
 interface AnalyticsCardProps {
     title: string;
@@ -365,23 +366,28 @@ const CreateTaskModal: React.FC<{ isOpen: boolean, onClose: () => void, onCreate
     );
 };
 
+const CreatorDashboard: React.FC = () => {
+    const { 
+        announcements, 
+        currentUser, 
+        campaigns, 
+        setCampaigns, 
+        setTasks, 
+        updateUser, 
+        depositRequests, 
+        requestDeposit
+    } = useAppContext();
 
-interface CreatorDashboardProps {
-    announcements: Announcement[];
-    currentUser: Creator;
-    campaigns: Campaign[];
-    setCampaigns: React.Dispatch<React.SetStateAction<Campaign[]>>;
-    setTasks: React.Dispatch<React.SetStateAction<Task[]>>;
-    onUpdateUser: (user: Creator) => void;
-    depositRequests: DepositRequest[];
-    onDepositRequest: (amount: number, paymentMethod: 'Card' | 'Bank Transfer') => void;
-}
-
-const CreatorDashboard: React.FC<CreatorDashboardProps> = ({ announcements, currentUser, campaigns, setCampaigns, setTasks, onUpdateUser, depositRequests, onDepositRequest }) => {
     const [isPaymentModalOpen, setPaymentModalOpen] = useState(false);
     const [isCreateTaskModalOpen, setCreateTaskModalOpen] = useState(false);
+    
+    const userCreatorCampaigns = useMemo(() => {
+        if (!currentUser) return [];
+        return campaigns.filter(c => c.creatorId === currentUser.id)
+    }, [campaigns, currentUser]);
 
     const handleCreateCampaign = (newCampaignData: Omit<Campaign, 'id' | 'creatorId' | 'completedTasks' | 'status' | 'creatorName' | 'creatorAvatar'>) => {
+        if (!currentUser) return;
         const campaignId = Date.now().toString();
         const newCampaign: Campaign = {
             ...newCampaignData,
@@ -406,12 +412,11 @@ const CreatorDashboard: React.FC<CreatorDashboardProps> = ({ announcements, curr
         };
         setTasks(prev => [newTask, ...prev]);
 
-
-        const updatedUser: Creator = {
+        const updatedUser = {
             ...currentUser,
-            walletBalance: currentUser.walletBalance - newCampaign.budget,
+            walletBalance: (currentUser as Creator).walletBalance - newCampaign.budget,
             transactions: [
-                ...currentUser.transactions,
+                ...(currentUser as Creator).transactions,
                 {
                     id: `txn-${Date.now()}`,
                     type: 'campaign',
@@ -420,21 +425,24 @@ const CreatorDashboard: React.FC<CreatorDashboardProps> = ({ announcements, curr
                     date: new Date().toISOString()
                 }
             ]
-        };
-        onUpdateUser(updatedUser);
+        } as Creator;
+        updateUser(updatedUser);
     };
     
     const userPendingDeposits = useMemo(() => {
+        if (!currentUser) return [];
         return depositRequests.filter(d => d.userId === currentUser.id && d.status === 'Pending');
-    }, [depositRequests, currentUser.id]);
-
+    }, [depositRequests, currentUser]);
+    
+    const creatorUser = currentUser as Creator;
+    if (!creatorUser) return null; // or a loading spinner
 
     return (
         <div className="space-y-8 animate-fade-in">
-             <PaymentModal isOpen={isPaymentModalOpen} onClose={() => setPaymentModalOpen(false)} onDeposit={onDepositRequest} currentUserId={currentUser.id} />
-             <CreateTaskModal isOpen={isCreateTaskModalOpen} onClose={() => setCreateTaskModalOpen(false)} onCreateCampaign={handleCreateCampaign} balance={currentUser.walletBalance} />
+             <PaymentModal isOpen={isPaymentModalOpen} onClose={() => setPaymentModalOpen(false)} onDeposit={requestDeposit} currentUserId={creatorUser.id} />
+             <CreateTaskModal isOpen={isCreateTaskModalOpen} onClose={() => setCreateTaskModalOpen(false)} onCreateCampaign={handleCreateCampaign} balance={creatorUser.walletBalance} />
             
-            <h1 className="text-3xl font-bold font-display">Welcome back, {currentUser.name.split(' ')[0]}!</h1>
+            <h1 className="text-3xl font-bold font-display">Welcome back, {creatorUser.name.split(' ')[0]}!</h1>
             
             {announcements.length > 0 && (
                  <section className="bg-primary-50 dark:bg-primary-950 p-4 rounded-xl border border-primary-200 dark:border-primary-800">
@@ -451,10 +459,10 @@ const CreatorDashboard: React.FC<CreatorDashboardProps> = ({ announcements, curr
             )}
 
             <section className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <CreatorWallet user={currentUser} onFund={() => setPaymentModalOpen(true)} pendingDeposits={userPendingDeposits} />
+                <CreatorWallet user={creatorUser} onFund={() => setPaymentModalOpen(true)} pendingDeposits={userPendingDeposits} />
                 <div className="bg-white dark:bg-gray-900 p-6 rounded-2xl shadow-sm space-y-4 col-span-1 border border-gray-200 dark:border-gray-800">
-                    <AnalyticsCard title="Total Spend" value={`$${currentUser.transactions.filter(t=>t.type==='campaign').reduce((acc, t) => acc + Math.abs(t.amount), 0).toLocaleString()}`} icon={DollarSignIcon} color="bg-green-500" />
-                    <AnalyticsCard title="Active Campaigns" value={campaigns.filter(c => c.status === 'Active').length.toString()} icon={UsersIcon} color="bg-purple-500" />
+                    <AnalyticsCard title="Total Spend" value={`$${creatorUser.transactions.filter(t=>t.type==='campaign').reduce((acc, t) => acc + Math.abs(t.amount), 0).toLocaleString()}`} icon={DollarSignIcon} color="bg-green-500" />
+                    <AnalyticsCard title="Active Campaigns" value={userCreatorCampaigns.filter(c => c.status === 'Active').length.toString()} icon={UsersIcon} color="bg-purple-500" />
                 </div>
             </section>
             
@@ -465,9 +473,9 @@ const CreatorDashboard: React.FC<CreatorDashboardProps> = ({ announcements, curr
                         + Create Campaign
                     </button>
                 </div>
-                {campaigns.length > 0 ? (
+                {userCreatorCampaigns.length > 0 ? (
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                        {campaigns.map(campaign => (
+                        {userCreatorCampaigns.map(campaign => (
                             <CampaignCard key={campaign.id} campaign={campaign} />
                         ))}
                     </div>
